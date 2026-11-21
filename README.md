@@ -1,4 +1,4 @@
-# CST8915 Lab 7: Introduction to Kubernetes Basics
+# CST8915 Lab 8: Deploying and Managing the Algonquin Pet Store (On Steroids)
 
 **Student Name**: Andy Ung <br/>
 **Student ID**: 041299387 <br/>
@@ -9,57 +9,36 @@
 
 ## Demo Video
 
-🎥 [Watch Demo Video](https://youtu.be/rlH7Djphdcs)
+🎥 [Watch Demo Video](https://youtu.be/yWT4jvTXNvE)
 
 
 ---
 
-## Analysis
+## Updated Files
 
-- Whether RabbitMQ is a stateless or stateful application?
+[Admin Task](./admin-tasks.yaml) <br/>
+[Aps All in One Task 1](./aps-all-in-one-Task1.yaml)
 
-RabbitMQ is a stateful application and should use a persistent volume. Message queues, payloads, etc are stored on the RabbitMQ instance.
+---
 
-- The implications of running RabbitMQ without persistent storage?
+## Investigate Azure Managed Services
+Azure CosmosDB
+- Replaces: MongoDB
+- Purpose: Fully managed noSQL database
+- MongoDB is a good fit as its a fully managed noSQL db that stores data
+- MongoDB was used by the `makeline-service` to store persistent orders, but if the MongoDB pod restarts or fails, the orders are lost
+- CosmosDB is a good fit as it supports MongoDB wire protocol and should only need a connection string instead of fully rewriting code
+- This solves the problem of losing data on a pod restart, since the service stores data outside the pod and handles patching and scaling. This allows us to focus on the application instead of managing the database.
 
-Without persistent storage, after a pod that contained a `services` of RabbitMQ, the orders that are queue'd are destroyed and lost. This means creating a new service of RabbitMQ does not retain the same messages
-
-- What happens when the RabbitMQ pod is deleted or restarted?
-
-In this current `yaml` file, when a RabbitMQ pod is deleted or restarted, all orders are lost. This is due to the message queues are stored on the rabbitmq instance pod so whenever the pod is restarted or deleted, the state is no longer retained.
-
-- Potential solutions to this problem (research-based)?
-
-A possible solution is using persistent storage that is linked to a RabbitMQ service. This means whenever a RabbitMQ pod is newly created, restarted, or destoryed, all orders are stored to serve to a client.
-
-Below is an example of adding a persistent storage to maintain statefulness. 
-- `volumeMounts` specifies the directory to store the message queues, etc
-- `volumes` tells the pod how to source the orders. In this case a cloud disk storage is provisioned
-```
-spec:
-  template:
-    spec:
-      containers:
-        - name: rabbitmq
-          image: rabbitmq:3-management
-
-          # Extension
-          volumeMounts:
-            - name: rabbitmq-storage
-              mountPath: /var/lib/rabbitmq
-
-      # Extension
-      volumes:
-        - name: rabbitmq-storage
-          persistentVolumeClaim:
-            claimName: rabbitmq-pvc
-```
-
-- Does using Azure Service Bus solve the issues identified with RabbitMQ Configuration in this Lab?
-
-Yes, using a managed service instead of an owned service moves the responsibility to Azure/Microsoft to manage the infrastructure and provisioning (and more..). This means that we do not need to worry about the issues of orders/messages being lost after a queue is restarted or destroyed.  
+Azure Service Bus
+- Replaces: RabbitMQ
+- Purpose: Fully managed message broker with queues and topics
+- Azure service bus is a good fit as it is a fully managed service that acts as a message broker with queues and topics and does not lose data if it is temporarily down.
+- RabbitMQ was used to queue orders from `order-service` and `makeline-service` and using Azure service bus does the same job with AMQP to queue orders
+- The problem this solves is we no longer have to run and maintain the broker ourselves
+- Orders are continually fed to the queue if a broker pod fails instead of lost messages when our RabbitMQ pod goes down or restarts
 
 ## Acknowledgements
-- https://www.rabbitmq.com/docs/install-kubernetes-diy
-- https://www.rabbitmq.com/docs/install-kubernetes-diy
-- Had AI help create the sample extension part to the YAML
+- Had AI help modify the all in one YAML
+- https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/overview
+- https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview
